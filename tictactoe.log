@@ -1,0 +1,62 @@
+INFO:root:main()
+DEBUG:root:gameID is 1
+DEBUG:root:Player X is menaceX
+DEBUG:root:Player O is menaceY
+INFO:root:Player X's turn
+INFO:root:printBoard()
+DEBUG:root:Getting AI move for X (menaceX)
+INFO:root:hashBoard()
+INFO:root:move('X', 0)
+INFO:root:checkWon()
+DEBUG:root:winner is ''
+INFO:root:Player O's turn
+INFO:root:printBoard()
+DEBUG:root:Getting AI move for O (menaceY)
+INFO:root:hashBoard()
+INFO:root:move('O', 2)
+INFO:root:checkWon()
+DEBUG:root:winner is ''
+INFO:root:Player X's turn
+INFO:root:printBoard()
+DEBUG:root:Getting AI move for X (menaceX)
+INFO:root:hashBoard()
+DEBUG:root:hash result: 11
+INFO:root:move('X', 2)
+DEBUG:root:Pruning move from AI
+DEBUG:root:pruned board for 8019 to [0, 3, 4, 5, 6, 4, 3, 1, 7, 8]
+DEBUG:root:Getting AI move for X (menaceX)
+INFO:root:hashBoard()
+DEBUG:root:hash result: 11
+INFO:root:move('X', 3)
+INFO:root:checkWon()
+DEBUG:root:winner is ''
+INFO:root:Player O's turn
+INFO:root:printBoard()
+DEBUG:root:Getting AI move for O (menaceY)
+INFO:root:hashBoard()
+DEBUG:root:hash result: 11
+INFO:root:move('O', 1)
+INFO:root:checkWon()
+DEBUG:root:winner is ''
+INFO:root:Player X's turn
+INFO:root:printBoard()
+DEBUG:root:Getting AI move for X (menaceX)
+INFO:root:hashBoard()
+DEBUG:root:hash result: 5
+DEBUG:root:hash result: 17
+INFO:root:move('X', 3)
+DEBUG:root:Pruning move from AI
+DEBUG:root:pruned board for 12636 to [1, 8, 0, 2, 6, 6, 8, 4, 5, 7]
+DEBUG:root:Getting AI move for X (menaceX)
+INFO:root:hashBoard()
+DEBUG:root:hash result: 5
+DEBUG:root:hash result: 17
+INFO:root:move('X', 6)
+INFO:root:checkWon()
+DEBUG:root:winner is 'X'
+INFO:root:printBoard()
+DEBUG:root:Adding 3 instances of 0 to 0 (menace X)
+DEBUG:root:Adding 3 instances of 3 to 8019 (menace X)
+DEBUG:root:Adding 3 instances of 6 to 12636 (menace X)
+DEBUG:root:Removing 1 instance of 2 from 6561 (menace O)
+DEBUG:root:Removing 1 instance of 1 from 8262 (menace O)
