@@ -5,17 +5,15 @@ board = [' '] * 9
 def getArgs():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '-x',
+        'x',
         type=str,
         nargs=1,
-        default='human',
         help='set player X'
     )
     parser.add_argument(
-        '-o',
+        'o',
         type=str,
         nargs=1,
-        default='human',
         help='set player O'
     )
     parser.add_argument(
@@ -203,6 +201,11 @@ class menaceAI():
     def getMove(self):
         hash = hashBoard()
         matchbox = self.matchboxes[hash]
+        try:
+            spot = random.choice(matchbox)
+        except IndexError:
+            self.matchboxes[hash] = list(range(9))
+            matchbox = self.matchboxes[hash]
         spot = random.choice(matchbox)
         self.movesThisGame.append((hash, spot))
 
