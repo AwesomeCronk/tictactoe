@@ -17,7 +17,7 @@
                     {
                         files:
                         [
-                            {path: "tictactoe", source: "https://raw.githubusercontent.com/AwesomeCronk/tictactoe/master/tictactoe", action: "write"},
+                            {path: "tictactoe", source: "https://raw.githubusercontent.com/AwesomeCronk/tictactoe/master/tictactoe", action: "write 774"},
                             {path: "README.md", source: "https://raw.githubusercontent.com/AwesomeCronk/tictactoe/master/README.md", action: "write"}
                         ],
                         links:
