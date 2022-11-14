@@ -1,23 +1,30 @@
 {
-    "name": "tictactoe",
-    "type": "program",
-    "latest": "1.0.0",
-    "latest-stable": "1.0.0",
-    "versions":
+    name: "tictactoe",
+    type: "program",
+    latest: "1.0.0",
+    latest_stable: "1.0.0",
+    releases:
     {
         "1.0.0":
         {
-            "release-notes": "Initial release, fully functional.",
-            "stable": "yes",
-            "platforms":
+            release_notes: "Initial release, fully functional.",
+            stable: true,
+            platforms:
             {
-                "Linux-Systemd":
+                x86_64:
                 {
-                    "files":
-                    [
-                        {"path": "tictactoe", "source": "https://raw.githubusercontent.com/AwesomeCronk/tictactoe/master/tictactoe", "action": "write"},
-                        {"path": "README.md", "source": "https://raw.githubusercontent.com/AwesomeCronk/tictactoe/master/README.md", "action": "write"}
-                    ]
+                    Linux:
+                    {
+                        files:
+                        [
+                            {path: "tictactoe", source: "https://raw.githubusercontent.com/AwesomeCronk/tictactoe/master/tictactoe", action: "write"},
+                            {path: "README.md", source: "https://raw.githubusercontent.com/AwesomeCronk/tictactoe/master/README.md", action: "write"}
+                        ],
+                        links:
+                        [
+                            {name: "tictactoe", target: "tictactoe"}
+                        ]
+                    }
                 }
             }
         }
