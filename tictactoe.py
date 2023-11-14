@@ -1,5 +1,8 @@
 import copy, logging, os, random, argparse, time
 
+from playerInterfaces import getInterfacefromName
+
+
 board = [' '] * 9
 
 def getArgs():
@@ -7,17 +10,16 @@ def getArgs():
     parser.add_argument(
         'x',
         type=str,
-        nargs=1,
         help='set player X'
     )
     parser.add_argument(
         'o',
         type=str,
-        nargs=1,
         help='set player O'
     )
     parser.add_argument(
         '-d',
+        '--delay',
         type=float,
         default=0.5,
         help='set delay for AI players'
@@ -115,132 +117,17 @@ def unHashBoard(hash):
         remaining = remaining // 3
     return board
 
-# My sad attempt at making a minimax AI... not tested and guaranteed not to work
-class minimaxAI():
-    class branch():
-        def __init__(self, minimax, hash):
-            self.minimax = minimax      # True: playing as X; False: Playing as O
-            self.hash = hash
-            self.value = 0
-            self.move = -1
-            self.branches = []
-
-            self.initBranches()
-
-        def initBranches(self):
-            self.board = unHashBoard(self.hash)
-            for spot, value in enumerate(self.board):
-                if value == ' ':     # If a move can be placed there
-                    branchBoard = copy.copy(self.board)
-                    branchBoard[spot] = 'X' if self.minimax else 'O'
-                    self.branches.append(minimaxAI.branch(self.minimax, hashBoard(branchBoard)))
-
-        def eval(self):
-            self.value = 0
-
-            if len(self.branches) > 0:
-                for branch in self.branches:
-                    branch.eval()
-                    if self.minimax and branch.value > self.value:
-                        self.value = branch.value
-                    elif not self.minimax and branch.value < self.value:
-                        self.value = branch.value
-            else:
-                winner = checkWon(self.board)
-                if self.winner == 'X':
-                    self.value = 1
-                elif self.winner == 'O':
-                    self.value = -1
-
-    def __init__(self, minimax):
-        self.minimax = minimax
-        self.rootBranch = self.branch(board, self.minimax)
-
-    def eval(self, state):
-        pass
-
-class menaceAI():
-    def __init__(self, matchboxPath, player):
-        self.matchboxPath = matchboxPath
-        self.player = player
-        self.matchboxes = []
-        self.movesThisGame = []     # Store the matchbox number and the position played in tuples
-        if not os.path.exists(self.matchboxPath):
-            self.initMatchboxFile()
-        self.loadMatchboxes()
-
-    def initMatchboxFile(self):
-        with open(self.matchboxPath, 'w') as matchboxFile:
-            for i in range(3 ** 9):
-                spotsWritten = []
-                for j in range(10):
-                    spot = random.randint(0, 8)
-                    matchboxFile.write(str(spot) + ' ')
-                    spotsWritten.append(spot)
-
-                # Ensure any available spot can be played
-                for j in range(9):
-                    if not j in spotsWritten:
-                        matchboxFile.write(str(j) + ' ')
-                matchboxFile.write('\n')
-
-    def loadMatchboxes(self):
-        self.matchboxes = []
-        with open(self.matchboxPath, 'r') as matchboxFile:
-            for matchbox in matchboxFile:
-                self.matchboxes.append([])
-                for bead in matchbox[:-1].split():
-                    self.matchboxes[-1].append(int(bead))
-    
-    def saveMatchboxes(self):
-        with open(self.matchboxPath, 'w') as matchboxFile:
-            for matchbox in self.matchboxes:
-                matchboxFile.write(' '.join([str(spot) for spot in matchbox]))
-                matchboxFile.write('\n')
-
-    def getMove(self):
-        hash = hashBoard()
-        matchbox = self.matchboxes[hash]
-        try:
-            spot = random.choice(matchbox)
-        except IndexError:
-            self.matchboxes[hash] = list(range(9))
-            matchbox = self.matchboxes[hash]
-        spot = random.choice(matchbox)
-        self.movesThisGame.append((hash, spot))
-
-        print('Move for {} (menace): {}'.format(self.player, spot))
-        return spot
-
-    def eliminateLastMove(self):
-        hash, spot = self.movesThisGame[-1]
-        del self.movesThisGame[-1]
-        self.matchboxes[hash] = [i for i in self.matchboxes[hash] if i != spot]
-        logging.debug('pruned board for {} to {}'.format(hash, self.matchboxes[hash]))
-
-    def tune(self, winner):
-        for hash, spot in self.movesThisGame:
-            if winner == 'Nobody':
-                logging.debug('Adding 1 instance of {} to {} (menace {})'.format(spot, hash, self.player))
-                self.matchboxes[hash].append(spot)
-            elif winner == self.player:
-                logging.debug('Adding 3 instances of {} to {} (menace {})'.format(spot, hash, self.player))
-                self.matchboxes[hash].append(spot)
-                self.matchboxes[hash].append(spot)
-                self.matchboxes[hash].append(spot)
-            else:
-                logging.debug('Removing 1 instance of {} from {} (menace {})'.format(spot, hash, self.player))
-                self.matchboxes[hash].remove(spot)
-        self.saveMatchboxes()
-
 def main(args):
     logging.info('main()')
-    players = {'X': args.x[0], 'O': args.o[0]}
+
+    playerNames = {'X': args.x, 'O': args.o}
+    players = {}
     currentPlayer = 'X'
     winner = ''
     aiPlayers = {}
     gameID = 0
 
+    # Generate game ID and statistics file
     if not os.path.exists('stats.ttt'):
         with open('stats.ttt', 'w'):
             pass
@@ -251,38 +138,24 @@ def main(args):
                 gameID += 1
     logging.debug('gameID is {}'.format(gameID))
 
-    if 'menace' in players['X']:
-        aiPlayers['X'] = menaceAI('{}.mnc'.format(players['X']), 'X')
-        logging.debug('Player X is {}'.format(players['X']))
-    if 'menace' in players['O']:
-        aiPlayers['O'] = menaceAI('{}.mnc'.format(players['O']), 'O')
-        logging.debug('Player O is {}'.format(players['O']))
+    # Set up player interfaces
+    for player in ('X', 'O'):
+        interface = getInterfacefromName(playerNames[player])
+        players[player] = interface(player, playerNames[player])
+
+    print('{} vs {}'.format(playerNames['X'], playerNames['O']))
 
     while winner == '':
-        logging.info("Player {}'s turn".format(currentPlayer))
-        print('')
-        print('{} vs {}'.format(players['X'], players['O']))
+        logging.info("{}'s turn\n".format(playerNames[currentPlayer]))
         printBoard()
         print('\n')
 
         success = False
         while not success:
-            if currentPlayer in aiPlayers.keys():
-                time.sleep(args.d)
-                logging.debug('Getting AI move for {} ({})'.format(currentPlayer, players[currentPlayer]))
-                success = move(currentPlayer, aiPlayers[currentPlayer].getMove())
-                if not success:
-                    logging.debug('Pruning move from AI')
-                    aiPlayers[currentPlayer].eliminateLastMove()    # For this state, that was not a valid move
-            else:
-                success = move(currentPlayer, getMove(currentPlayer))
+            success = move(currentPlayer, players[currentPlayer].getMove())
+            if not success: players[currentPlayer].eliminateLastMove()    # For this state, that was not a valid move
 
-        # hash = hashBoard()
-        # unHashedBoard = unHashBoard(hash)
         winner = checkWon()
-
-        # logging.debug('hash is {}'.format(repr(hash)))
-        # logging.debug('hash returns {}'.format(repr(unHashedBoard)))
         logging.debug('winner is {}'.format(repr(winner)))
 
         if winner != '':
