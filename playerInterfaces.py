@@ -1,11 +1,23 @@
+import os, random
+
+from utils import hashBoard, unhashBoard
+
+
 class _playerInterface:
-    def getMove(self):
+    def __init__(self, player, playerName):
+        self.player = player
+        self.playerName = playerName
+
+    def getMove(self, board):
         raise NotImplementedError()
 
     def eliminateLastMove(self):
         raise NotImplementedError()
 
-    def move(self):
+    def move(self, spot):
+        raise NotImplementedError()
+
+    def postGame(self, winner):
         raise NotImplementedError()
 
 
@@ -17,12 +29,38 @@ def getInterfacefromName(name):
 
 
 # Plain human input, prompts the user for a position
-class textInput():
+class textInput(_playerInterface):
     def __init__(self, player, playerName):
+        _playerInterface.__init__(self, player, playerName)
+
+    def getMove(self, board):
+        return int(input('Move for {} ({}): '.format(self.playerName, self.player)))
+
+        # This might be removable depending on how _playerInterface.move() works out
+        # try:
+        #     choice = int(input('Move for {}: '.format(player)))
+        # except ValueError:
+        #     print('Invalid entry, could not get integer')
+        #     choice = self.getMove()
+        # 
+        # if choice in range(9):
+        #     return choice
+        # else:
+        #     print('Invalid entry: {}, out of range'.format(choice))
+        #     return self.getMove()
+
+    def eliminateLastMove(self):
+        print('Invalid entry, try again')
+
+    def move(self, spot):
+        pass
+
+    def postGame(self, winner):
+        pass
 
 
 # My sad attempt at making a minimax AI... not tested and guaranteed not to work
-class minimaxAI():
+class minimaxAI(_playerInterface):
     class branch():
         def __init__(self, minimax, hash):
             self.minimax = minimax      # True: playing as X; False: Playing as O
@@ -67,12 +105,13 @@ class minimaxAI():
 
 
 # Implements the MENACE algorithm
-class menaceAI():
-    def __init__(self, matchboxPath, player):
-        self.matchboxPath = matchboxPath
-        self.player = player
+class menaceAI(_playerInterface):
+    def __init__(self, player, playerName):
+        _playerInterface.__init__(self, player, playerName)
+        self.matchboxPath = playerName + '.mnc'
         self.matchboxes = []
         self.movesThisGame = []     # Store the matchbox number and the position played in tuples
+        
         if not os.path.exists(self.matchboxPath):
             self.initMatchboxFile()
         self.loadMatchboxes()
@@ -106,16 +145,17 @@ class menaceAI():
                 matchboxFile.write(' '.join([str(spot) for spot in matchbox]))
                 matchboxFile.write('\n')
 
-    def getMove(self):
+    def getMove(self, board):
         # By pretending we're X even when we're O, the AI can use the same training file for both
         if self.player == 'O':
             inversion = {' ': ' ', 'X': 'O', 'O': 'X'}
             invBoard = [inversion[spot] for spot in board]
             hash = hashBoard(invBoard)
         else:
-            hash = hashBoard()
+            hash = hashBoard(board)
 
         matchbox = self.matchboxes[hash]
+
         try:
             spot = random.choice(matchbox)
         except IndexError:      # Matchbox is empty
@@ -124,8 +164,8 @@ class menaceAI():
             spot = random.choice(matchbox)
 
         self.movesThisGame.append((hash, spot))
+        print('{} ({}) moves at {}'.format(self.playerName, self.player, spot))
 
-        print('Move for {} (menace): {}'.format(self.player, spot))
         return spot
 
     def eliminateLastMove(self):
@@ -134,19 +174,21 @@ class menaceAI():
         del self.movesThisGame[-1]
 
         self.matchboxes[hash] = [i for i in self.matchboxes[hash] if i != spot]
-        logging.debug('pruned board for {} to {}'.format(hash, self.matchboxes[hash]))
 
-    def tune(self, winner):
+    def move(self, spot):
+        pass
+
+    def postGame(self, winner):
         for hash, spot in self.movesThisGame:
             if winner == 'Nobody':
-                logging.debug('Adding 1 instance of {} to {} (menace {})'.format(spot, hash, self.player))
                 self.matchboxes[hash].append(spot)
+
             elif winner == self.player:
-                logging.debug('Adding 3 instances of {} to {} (menace {})'.format(spot, hash, self.player))
                 self.matchboxes[hash].append(spot)
                 self.matchboxes[hash].append(spot)
                 self.matchboxes[hash].append(spot)
+
             else:
-                logging.debug('Removing 1 instance of {} from {} (menace {})'.format(spot, hash, self.player))
                 self.matchboxes[hash].remove(spot)
+                
         self.saveMatchboxes()
