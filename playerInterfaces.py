@@ -1,4 +1,4 @@
-import os, random
+import os, random, socket, time
 
 from utils import hashBoard, unhashBoard
 
@@ -24,6 +24,8 @@ class _playerInterface:
 def getInterfacefromName(name):    
     if name[0:6] == 'menace':
         return menaceAI
+    elif name[0:5] == 'denso':
+        return denso
     else:
         return textInput
 
@@ -116,6 +118,8 @@ class menaceAI(_playerInterface):
             self.initMatchboxFile()
         self.loadMatchboxes()
 
+        print('Using {}'.format(self.matchboxPath))
+
     def initMatchboxFile(self):
         with open(self.matchboxPath, 'w') as matchboxFile:
             for i in range(3 ** 9):
@@ -138,6 +142,9 @@ class menaceAI(_playerInterface):
                 self.matchboxes.append([])
                 for bead in matchbox[:-1].split():
                     self.matchboxes[-1].append(int(bead))
+        # If the matchbox file is incomplete, load empty matchboxes
+        while len(self.matchboxes) < (3 ** 9):
+            self.matchboxes.append([])
     
     def saveMatchboxes(self):
         with open(self.matchboxPath, 'w') as matchboxFile:
@@ -192,3 +199,30 @@ class menaceAI(_playerInterface):
                 self.matchboxes[hash].remove(spot)
                 
         self.saveMatchboxes()
+
+
+# Interfaces with the DENSO robot at school
+class denso(_playerInterface):
+    def __init__(self, player, playerName):
+        _playerInterface.__init__(self, player, playerName)
+        self.control = getInterfacefromName(self.playerName[5:])(self.player, self.playerName)
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print('Connecting to robot at 10.1.0.64...', end=' ')
+        self.socket.connect(('10.1.0.64', 5001))
+        print('Connected!')
+
+    def getMove(self, board):
+        return self.control.getMove(board)
+
+    def eliminateLastMove(self):
+        return self.control.eliminateLastMove()
+
+    def move(self, spot):
+        self.control.move(spot)
+        print('Commanding robot motion')
+        self.socket.send('move\r\n{}\r\n'.format(spot).encode())
+        time.sleep(5)
+
+    def postGame(self, winner):
+        self.control.postGame(winner)
+        self.socket.close()
