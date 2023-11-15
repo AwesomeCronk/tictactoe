@@ -1,5 +1,6 @@
 import copy, os, argparse, time
 
+from utils import printBoard, checkWinner
 from playerInterfaces import getInterfacefromName
 
 
@@ -25,35 +26,6 @@ def getArgs():
         help='set delay for AI players'
     )
     return parser.parse_args()
-
-def printBoard(board=board):
-    for i0 in range(3):
-        if i0: print('\n---|---|---          ---|---|---')
-
-        for i1 in range(3):
-            if i1: print('|', end='')
-            print(' ' + board[(2 - i0) * 3 + i1].replace(' ', str((2 - i0) * 3 + i1)).replace('X', ' ').replace('O', ' '), end = ' ')
-        print('          ', end='')
-
-        for i1 in range(3):
-            if i1: print('|', end='')
-            print(' ' + board[(2 - i0) * 3 + i1], end = ' ')
- 
-def checkWon(board=board):
-    winner = ''
-    for i in range(3):
-        if board[i * 3] == board[i * 3 + 1] == board[i * 3 + 2] and board[i * 3] != ' ':    # Check rows
-            winner = board[i * 3]
-        elif board[i] == board[i + 3] == board[i + 6] and board[i] != ' ':      # Check Columns
-            winner = board[i]
-        elif board[0] == board[4] == board[8] and board[0] != ' ':      # Check down-right
-            winner = board[0]
-        elif board[2] == board[4] == board[6] and board[2] != ' ':      # Check down-left
-            winner = board[2]
-
-    if winner == '' and not ' ' in board:
-        winner = 'Nobody'
-    return winner
 
 # Generate a number to define the unique state of the board
 # If we operate on the principle of base 3 mathematics, we can get a base 3 number and still use
@@ -89,8 +61,7 @@ def main(args):
         for currentPlayer in ('X', 'O'):
             interface = interfaces[currentPlayer]
 
-            printBoard()
-            print('\n')
+            printBoard(board, end='\n\n')
 
             # Get the player's move
             moveValid = False
@@ -106,12 +77,11 @@ def main(args):
             interface.move(spot)
 
             # Check for a winner
-            winner = checkWon()
+            winner = checkWinner(board)
             if winner != '':
                 print('{} won!'.format(winner))
                 print('')
-                printBoard()
-                print('\n')
+                printBoard(board, end='\n\n')
 
                 with open('stats.ttt', 'a') as statsFile:
                     statsFile.write('game {}: {} vs {} - {} won\n'.format(gameID, playerNames['X'], playerNames['O'], playerNames[winner] if winner != 'Nobody' else 'Nobody'))

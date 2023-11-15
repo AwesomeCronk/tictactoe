@@ -4,3 +4,4 @@ stats.ttt
 tictactoe.build
 tictactoe.dist
 tictactoe
+__pycache__
