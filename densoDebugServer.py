@@ -2,7 +2,7 @@ import socket
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-sock.bind(('0.0.0.0', 6000))
+sock.bind(('10.1.0.9', 6000))
 
 sock.listen(1)
 

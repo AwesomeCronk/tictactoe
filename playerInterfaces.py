@@ -1,4 +1,4 @@
-import os, random, socket, time
+import os, random, socket, sys, time
 
 from utils import hashBoard, unhashBoard
 
@@ -23,9 +23,11 @@ class _playerInterface:
 
 def getInterfacefromName(name):    
     if name[0:6] == 'menace':
-        return menaceAI
+        return menace
     elif name[0:5] == 'denso':
         return denso
+    elif name[0:6] == 'cognex':
+        return cognex
     else:
         return textInput
 
@@ -107,7 +109,7 @@ class minimaxAI(_playerInterface):
 
 
 # Implements the MENACE algorithm
-class menaceAI(_playerInterface):
+class menace(_playerInterface):
     def __init__(self, player, playerName):
         _playerInterface.__init__(self, player, playerName)
         self.matchboxPath = playerName + '.mnc'
@@ -186,16 +188,20 @@ class menaceAI(_playerInterface):
         pass
 
     def postGame(self, winner):
+        print('{} adjustments:'.format(self.playerName))
         for hash, spot in self.movesThisGame:
             if winner == 'Nobody':
+                print('{} + {}'.format(hash, spot))
                 self.matchboxes[hash].append(spot)
 
             elif winner == self.player:
+                print('{} + ({} * 3)'.format(hash, spot))
                 self.matchboxes[hash].append(spot)
                 self.matchboxes[hash].append(spot)
                 self.matchboxes[hash].append(spot)
 
             else:
+                print('{} - {}'.format(hash, spot))
                 self.matchboxes[hash].remove(spot)
                 
         self.saveMatchboxes()
@@ -205,10 +211,18 @@ class menaceAI(_playerInterface):
 class denso(_playerInterface):
     def __init__(self, player, playerName):
         _playerInterface.__init__(self, player, playerName)
-        self.control = getInterfacefromName(self.playerName[5:])(self.player, self.playerName)
+
+        controlClass = getInterfacefromName(self.playerName[5:])
+        if controlClass is cognex:
+            print('Cannot control DENSO with COGNEX')
+            sys.exit(1)
+        self.control = controlClass(self.player, self.playerName)
+        
+        densoAddress = ('10.1.0.64', 5001)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print('Connecting to robot at 10.1.0.64...', end=' ')
-        self.socket.connect(('10.1.0.64', 5001))
+        print('Connecting to robot at {}...'.format(densoAddress), end=' ')
+        self.socket.connect(densoAddress)
+        time.sleep(2)
         print('Connected!')
 
     def getMove(self, board):
@@ -225,4 +239,59 @@ class denso(_playerInterface):
 
     def postGame(self, winner):
         self.control.postGame(winner)
+        time.sleep(8)
+        self.socket.send(b'quit\r\n\r\n')
+        time.sleep(0.1)
+        self.socket.close()
+
+
+# Interfaces with the COGNEX camera at school
+class cognex(_playerInterface):
+    def __init__(self, player, playerName):
+        _playerInterface.__init__(self, player, playerName)
+        
+        cognexAddress = ('10.1.0.55', 5001)
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print('Connecting to camera at {}...'.format(cognexAddress), end=' ')
+        self.socket.connect(cognexAddress)
+        print('Connected!')
+        
+        print('Logging in...')
+        self.socket.send(b'admin\r\n\r\n')
+        resp = self.socket.recv(1024)
+        print(resp.decode())
+
+    def getMove(self, board):
+        input('Press enter after you\'ve moved')
+        self.socket.send(b'SE8\r\n')
+        print(self.socket.recv(1024))
+
+        time.sleep(0.2)
+
+        self.socket.send(b'GVK000\r\n')
+        resp = self.socket.recv(1024)
+        resp = int(resp.decode().splitlines()[1].split('.')[0])  # Extract the integer from the mess that the COGNEX returns
+        
+        boardImage = [int(char) for char in '{:09b}'.format(resp)]
+        boardImage.reverse()
+        print(boardImage)
+
+        spot = -1
+
+        for i in range(9):
+            if board[i] == ' ' and boardImage[i]:
+                spot = i
+                break
+        
+        print('{} ({}) moves at {}'.format(self.playerName, self.player, spot))
+
+        return spot
+
+    def eliminateLastMove(self):
+        pass
+
+    def move(self, spot):
+        pass
+
+    def postGame(self, winner):
         self.socket.close()

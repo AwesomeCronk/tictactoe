@@ -83,6 +83,9 @@ def main(args):
                 print('')
                 printBoard(board, end='\n\n')
 
+                for currentPlayer in ('X', 'O'):
+                    interfaces[currentPlayer].postGame(winner)
+
                 with open('stats.ttt', 'a') as statsFile:
                     statsFile.write('game {}: {} vs {} - {} won\n'.format(gameID, playerNames['X'], playerNames['O'], playerNames[winner] if winner != 'Nobody' else 'Nobody'))
 
