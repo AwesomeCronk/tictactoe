@@ -3,22 +3,6 @@ import sys
 from utils import *
 
 
-# Checks if a hash represents a board in a valid game state
-def hashIsValidGameState(hash):
-    board = unhashBoard(hash)
-
-    # Can a game reach this state at all?
-    if board.count('X') > board.count('O') + 1:
-        return False
-
-    # Would the game be won by now?
-    elif checkWinner(board) in ('X', 'O'):
-        return False
-
-    else:
-        return True
-
-
 def base3Str(src):
     numDigits = 1
     while 3 ** numDigits <= src: numDigits += 1

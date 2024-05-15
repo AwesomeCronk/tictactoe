@@ -5,19 +5,19 @@ def hashBoard(board: list):
     hash = 0
     for i in range(9):
         hash *= 3
-        if board[i] == 'X':
+        if board[8 - i] == 'X':
             hash += 1
-        elif board[i] == 'O':
+        elif board[8 - i] == 'O':
             hash += 2
     return hash
 
 def unhashBoard(hash: int):
     board = []
-    types = [' ', 'X', 'O']
+    symbols = [' ', 'X', 'O']
     remaining = hash
     for i in range(9):
         last = remaining % 3
-        board.insert(0, types[last])
+        board.append(symbols[last])
         remaining = remaining // 3
     return board
 
@@ -38,39 +38,67 @@ def rotateBoard(board: list, angle: int):
     ]
     return transformBoard(board, transformMaps[angle])
 
-# Vertically flips the board
-def vflipBoard(board: list):
-    return transformBoard(board, [6, 7, 8, 3, 4, 5, 0, 1, 2])
-
-# Horizontally flips the board
-def hflipBoard(board: list):
-    return transformBoard(board, [2, 1, 0, 5, 4, 3, 8, 7, 6])
+# Flips the board (0 = horizontal, 1 = vertical)
+def flipBoard(board: list, direction: int):
+    if direction:
+        return transformBoard(board, [6, 7, 8, 3, 4, 5, 0, 1, 2])
+    else:
+        return transformBoard(board, [2, 1, 0, 5, 4, 3, 8, 7, 6])
 
 # Recursively finds the best alternative hash to a given hash. Returns the same if none better found.
 def getBestAltHash(hash):
+    # print('Finding best alt hash for {}'.format(hash))
+
     board = unhashBoard(hash)
     altHashes = []
+    transformations = [
+        (rotateBoard, 1),
+        (rotateBoard, 2),
+        (rotateBoard, 3),
+        (flipBoard, 0),
+        (flipBoard, 1)
+    ]
 
-    for altHash in [
-        hashBoard(rotateBoard(board, 1)),
-        hashBoard(rotateBoard(board, 2)),
-        hashBoard(rotateBoard(board, 3)),
-        hashBoard(vflipBoard(board)),
-        hashBoard(hflipBoard(board))
-    ]:
-        if altHash < hash and not altHash in altHashes: altHashes.append(altHash)
+    for transformer, parameter in transformations:
+        altHash = hashBoard(transformer(board, parameter))
+        altHashes.append(altHash)
+
+    # print('altHashes:', altHashes)
 
     if len(altHashes):
         bestAltHash = min(altHashes)
+        bestAltHashIndex = altHashes.index(bestAltHash)
+        transformations = [transformations[bestAltHashIndex],]  # Keep the transformation that produced bestAltHash, ditch the rest
     else:
         bestAltHash = hash
+        bestAltHashIndex = -1
+        transformations = []    # Didn't transform it, don't return any transformations
+
+    # print('Best alt hash is', bestAltHash)
+    # print('Found {} via {}, transformation {}'.format(bestAltHash, transformations, bestAltHashIndex))
 
     # Only one "layer" of transformations has been checked. If we actually found an alternative we
     # need to heck for alternatives to the alternative
     if bestAltHash < hash:
-        bestAltHash = min(bestAltHash, getBestAltHash(bestAltHash))
+        altAltHash, altTransformations = getBestAltHash(bestAltHash)
+        if altAltHash < bestAltHash:
+            bestAltHash = altAltHash
+            transformations += altTransformations
 
-    return bestAltHash
+    return bestAltHash, transformations
+
+def reverseTransformations(transformations: list):
+    newTransformations = copy.copy(transformations)
+    for t, transformation in enumerate(newTransformations):
+        transformer, parameter = transformation
+        # If it's a rotation, figure the way to undo the rotation
+        if transformer is rotateBoard:
+            newTransformations[t] = (transformer, (4 - parameter) % 4)
+        # The way to undo a flip is the same flip
+
+    # Finally, transformations must be undone in reverse
+    newTransformations.reverse()
+    return newTransformations
 
 def printBoard(board: list, end='\n'):
     for i0 in range(3):
@@ -102,3 +130,20 @@ def checkWinner(board: list):
     if winner == '' and not ' ' in board:
         winner = 'Nobody'
     return winner
+
+# Checks if a hash represents a board in a valid game state
+# Not used during games, only in auxillary programs
+def hashIsValidGameState(hash):
+    board = unhashBoard(hash)
+
+    # Can a game reach this state at all?
+    if board.count('X') > board.count('O') + 1:
+        return False
+
+    # Would the game be won by now?
+    elif checkWinner(board) in ('X', 'O'):
+        return False
+
+    else:
+        return True
+

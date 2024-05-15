@@ -1,6 +1,6 @@
 import os, random, socket, sys, time
 
-from utils import hashBoard, unhashBoard
+from utils import *
 
 
 class _playerInterface:
@@ -38,21 +38,11 @@ class textInput(_playerInterface):
         _playerInterface.__init__(self, player, playerName)
 
     def getMove(self, board):
-        return int(input('Move for {} ({}): '.format(self.playerName, self.player)))
-
-        # This might be removable depending on how _playerInterface.move() works out
-        # try:
-        #     choice = int(input('Move for {}: '.format(player)))
-        # except ValueError:
-        #     print('Invalid entry, could not get integer')
-        #     choice = self.getMove()
-        # 
-        # if choice in range(9):
-        #     return choice
-        # else:
-        #     print('Invalid entry: {}, out of range'.format(choice))
-        #     return self.getMove()
-
+        try:
+            return int(input('Move for {} ({}): '.format(self.playerName, self.player)))
+        except ValueError:
+            return -1
+            
     def eliminateLastMove(self):
         print('Invalid entry, try again')
 
@@ -163,26 +153,52 @@ class menace(_playerInterface):
         else:
             hash = hashBoard(board)
 
-        matchbox = self.matchboxes[hash]
+        bestAltHash, transformations = getBestAltHash(hash)
 
+        print('Hash is {}, best alt hash is {}'.format(hash, bestAltHash))
+
+        
+        matchbox = self.matchboxes[bestAltHash]
+        
         try:
             spot = random.choice(matchbox)
         except IndexError:      # Matchbox is empty
+            print('Matchbox {} is empty, setting to 0-8'.format(bestAltHash))
             matchbox = list(range(9))
-            self.matchboxes[hash] = matchbox
+            self.matchboxes[bestAltHash] = matchbox
             spot = random.choice(matchbox)
 
-        self.movesThisGame.append((hash, spot))
+        # Set this here so that at adjustments can be made at the alt matchbox directly
+        # Must be done before spot gets transformed to match original hash
+        self.movesThisGame.append((bestAltHash, spot))
+
+        # This only occurs if there was a better alt hash
+        if transformations:
+            print('Alt hash spot is', spot)
+            # print('Transformations are', transformations)
+            undoTransformations = reverseTransformations(transformations)
+            # print('Undo transformations are', undoTransformations)
+            effectBoard = [' '] * 9
+            effectBoard[spot] = 'X'
+
+            for transformer, parameter in undoTransformations:
+                effectBoard = transformer(effectBoard, parameter)
+
+            spot = effectBoard.index('X')
+
         print('{} ({}) moves at {}'.format(self.playerName, self.player, spot))
 
         return spot
 
+    # Take the last item out of movesThisGame
     def eliminateLastMove(self):
-        # Take the last item out of movesThisGame
         hash, spot = self.movesThisGame[-1]
         del self.movesThisGame[-1]
+        print('{} ({}) removing {} from matchbox {}'.format(self.playerName, self.player, spot, hash))
 
+        # print(self.matchboxes[hash], end=' : ')
         self.matchboxes[hash] = [i for i in self.matchboxes[hash] if i != spot]
+        # print(self.matchboxes[hash])
 
     def move(self, spot):
         pass
@@ -235,10 +251,11 @@ class denso(_playerInterface):
         self.control.move(spot)
         print('Commanding robot motion')
         self.socket.send('move\r\n{}\r\n'.format(spot).encode())
-        time.sleep(5)
+        # time.sleep(5)
 
     def postGame(self, winner):
         self.control.postGame(winner)
+        print('Waiting to stop robot program')
         time.sleep(8)
         self.socket.send(b'quit\r\n\r\n')
         time.sleep(0.1)
@@ -261,28 +278,65 @@ class cognex(_playerInterface):
         resp = self.socket.recv(1024)
         print(resp.decode())
 
-    def getMove(self, board):
-        input('Press enter after you\'ve moved')
-        self.socket.send(b'SE8\r\n')
-        print(self.socket.recv(1024))
-
+    def getPlayerButton(self):
+        self.socket.send(b'GVK011\r\n')
         time.sleep(0.2)
+        resp = self.socket.recv(1024).decode().strip().splitlines()[1]
 
-        self.socket.send(b'GVK000\r\n')
-        resp = self.socket.recv(1024)
-        resp = int(resp.decode().splitlines()[1].split('.')[0])  # Extract the integer from the mess that the COGNEX returns
-        
-        boardImage = [int(char) for char in '{:09b}'.format(resp)]
-        boardImage.reverse()
-        print(boardImage)
+        if resp == '0.000':
+            return 0    
+        elif resp == '1.000':
+            return 1
+        else:
+            return None
 
+    def capture(self):
+        self.socket.send(b'SE8\r\n')
+        time.sleep(0.2)
+        self.socket.recv(1024)
+
+    def fetchBoardImage(self):
+        ssCol = 'K' if self.player == 'X' else 'L'
+        image = []
+
+        for ssRow in range(5):
+            self.socket.send('GV{}{:>03}\r\n'.format(ssCol, ssRow).encode())
+            time.sleep(0.2)
+            image.append(self.socket.recv(1024).decode().strip().splitlines()[1])
+
+        return image
+
+    def decodeSpot(self, board, image):
         spot = -1
 
-        for i in range(9):
-            if board[i] == ' ' and boardImage[i]:
-                spot = i
-                break
-        
+        for i in range(5):
+            if not '#ERR' in image[i]:
+                x, y = [float(number) for number in image[i].split('|')]
+                print('X:', x, 'Y:', y)
+                
+                thisSpot = 0
+                if x < 80: thisSpot += 2
+                elif x < 160: thisSpot += 1
+                if y >= 120: thisSpot += 6
+                elif y >= 60: thisSpot += 3
+
+                if board[thisSpot] == ' ':
+                    spot = thisSpot
+                    break
+
+        return spot
+
+    def getMove(self, board):
+        playerButton = self.getPlayerButton()
+        while not playerButton:
+            time.sleep(0.2)
+            playerButton = self.getPlayerButton()
+
+        print('Capturing image, fetching image, decoding spot')
+        self.capture()
+        image = self.fetchBoardImage()
+        spot = self.decodeSpot(board, image)
+
         print('{} ({}) moves at {}'.format(self.playerName, self.player, spot))
 
         return spot

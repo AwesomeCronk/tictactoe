@@ -4,8 +4,6 @@ from utils import printBoard, checkWinner
 from playerInterfaces import getInterfacefromName
 
 
-board = [' '] * 9
-
 def getArgs():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -19,11 +17,11 @@ def getArgs():
         help='set player O'
     )
     parser.add_argument(
-        '-d',
-        '--delay',
-        type=float,
-        default=0.5,
-        help='set delay for AI players'
+        '-c',
+        '--count',
+        type=int,
+        default=1,
+        help='Number of games to play'
     )
     return parser.parse_args()
 
@@ -39,6 +37,7 @@ def main(args):
     currentPlayer = 'X'
     winner = ''
     gameID = 0
+    board = [' '] * 9
 
     # Generate game ID and statistics file
     if not os.path.exists('stats.ttt'):
@@ -65,12 +64,16 @@ def main(args):
 
             # Get the player's move
             moveValid = False
-            while not moveValid:
+            for i in range(20):
                 spot = interface.getMove(board)
                 if 0 <= spot <= 8:
                     moveValid = board[spot] == ' '
                 if not moveValid:
                     interface.eliminateLastMove()
+                else:
+                    break
+            else:   # nobreak
+                print('Failed to get valid move, aborting game')
 
             # Adjust the board, call the move handler
             board[spot] = currentPlayer
@@ -94,4 +97,6 @@ def main(args):
 
 if __name__ == '__main__':
     args = getArgs()
-    main(args)
+    assert args.count > 0
+    for c in range(args.count):
+        main(args)
